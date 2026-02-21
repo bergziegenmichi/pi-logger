@@ -1,0 +1,36 @@
+# Create a symlink in /etc/systemd/system/pi-logger.service that points to this file or move the file there
+# Modify user and path variables accordingly
+# To enable:
+# * sudo systemctl daemon-reload
+# * sudo systemctl enable --now pi-logger.service
+# * sudo systemctl status pi-logger.service
+# To debug:
+# * sudo journalctl -u pi-logger.service -e -f
+
+[Unit]
+Description=Raspberry Pi System Monitor
+# Wait for the network to be up before starting, since we need DNS and Email
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace 'pi' with your actual username (e.g., 'michael')
+User=admin
+Group=admin
+
+# The directory where your script and credentials.py are located
+WorkingDirectory=/home/admin/pi-logger
+
+# The command to start the script.
+ExecStart=/usr/bin/python3 /home/admin/pi-logger/main.py
+
+# Restart the service automatically if it crashes
+Restart=on-failure
+RestartSec=10
+
+# Ensures Python output is sent straight to syslog/journalctl without buffering
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
