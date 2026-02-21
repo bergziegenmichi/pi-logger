@@ -1,4 +1,5 @@
 # Create a symlink in /etc/systemd/system/pi-logger.service that points to this file or move the file there
+# You can use sudo systemctl link [location of this file]
 # Modify user and path variables accordingly
 # To enable:
 # * sudo systemctl daemon-reload

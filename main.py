@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import psutil
@@ -341,7 +342,7 @@ def get_disk_usage(path: str) -> dict[str, float] | None:
         return None
 
 
-def get_drive_health(device: str) -> str:
+def get_smart_health(device: str) -> str:
     """Returns 'PASSED', 'FAILED', 'UNKNOWN', 'TIMEOUT' or 'ERROR'"""
     try:
         res = subprocess.run(
@@ -360,6 +361,19 @@ def get_drive_health(device: str) -> str:
     except:
         return "ERROR"
 
+def get_sd_health(mount: str) -> str:
+    """Checks if the SD card has locked itself into Read-Only mode."""
+    test_file = Path(mount) / ".sd_health_test~"
+    try:
+        # Attempt to write and delete a temporary file
+        test_file.touch(exist_ok=True)
+        test_file.unlink()
+        return "PASSED"
+    except OSError as e:
+        # Errno 30 is 'Read-only file system'
+        if e.errno == 30:
+            return "FAILED"
+        return "ERROR"
 
 def monitor_disks():
     logger = get_service_logger("disks")
@@ -369,18 +383,30 @@ def monitor_disks():
             logger.warning(f"DISK FULL: {drive['name']} is {usage['percent']}% full ({usage['free_gb']}GB left)")
         else:
             logger.info(f"{drive['name']} Usage: {usage['percent']}% ({usage['free_gb']}GB free)")
-
-        health = get_drive_health(drive["device"])
-        if health == "PASSED":
-            logger.info(f"DRIVE {drive["name"]} passed the SMART test")
-        elif health == "FAILED":
-            logger.critical(f"DRIVE FAILURE IMMINENT: {drive['name']} ({drive['device']}) FAILED SMART CHECK!")
-        elif health == "ERROR":
-            logger.error(f"SMART ERROR: Could not communicate with {drive['device']}. Check USB cable.")
-        elif health == "TIMEOUT":
-            logger.error(f"SMART check timed out for {drive['device']}")
-        elif health == "UNKNOWN":
-            logger.error(f"UNKNOWN SMART STATUS: smartctl returned unknown status for {drive["device"]}")
+        if drive["type"] == "smart":
+            health = get_smart_health(drive["device"])
+            if health == "PASSED":
+                logger.info(f"DRIVE {drive["name"]} passed the SMART test")
+            elif health == "FAILED":
+                logger.critical(f"DRIVE FAILURE IMMINENT: {drive['name']} ({drive['device']}) FAILED SMART CHECK!")
+            elif health == "ERROR":
+                logger.error(f"SMART ERROR: Could not communicate with {drive['device']}. Check USB cable.")
+            elif health == "TIMEOUT":
+                logger.error(f"SMART check timed out for {drive['device']}")
+            elif health == "UNKNOWN":
+                logger.error(f"UNKNOWN SMART STATUS: smartctl returned unknown status for {drive["device"]}")
+        elif drive["type"] == "sd":
+            health = get_sd_health(drive["mount"])
+            if health == "PASSED":
+                logger.info(f"SD card {drive["name"]} passed the write test")
+            elif health == "FAILED":
+                log_critical_with_email(logger,f"SD card {drive["name"]} did not pass the write test. It is now in READ-ONLY mode!",
+                                        alternate_email_message=f"SD card {drive["name"]} failed the write test, because it is in READ-ONLY mode!.\n"
+                                                                f"Immediate backup and replacement required.")
+            elif health == "ERROR":
+                log_critical_with_email(logger,f"UNKNOWN ERROR while performing write test on {drive["name"]}",
+                                        alternate_email_message=f"SD card {drive["name"]} failed the write test with an unknown error.\n"
+                                                                f"It may be in READ-ONLY mode! Immediate replacement required.")
 
 
 

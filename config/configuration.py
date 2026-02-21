@@ -46,9 +46,16 @@ DISK_THRESHOLD = 80         # %
 EXTERNAL_DRIVES = [
     {"name": "Nextcloud data",
      "device": "/dev/disk/by-label/nextcloud-data",
-     "mount": "/mnt/nextcloud-data"},
+     "mount": "/mnt/nextcloud-data",
+     "type": "smart"},
 
     {"name": "Nextcloud backup",
      "device": "/dev/disk/by-label/nextcloud-backup",
-     "mount": "/mnt/nextcloud-backup"}
+     "mount": "/mnt/nextcloud-backup",
+     "type": "smart"},
+
+    {"name": "System SD card",
+     "device": "unused here",
+     "mount": "/",
+     "type": "sd"}
 ]
