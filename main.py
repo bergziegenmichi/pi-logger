@@ -361,9 +361,9 @@ def get_smart_health(device: str) -> str:
     except:
         return "ERROR"
 
-def get_sd_health(mount: str) -> str:
+def get_sd_health(test_file_path) -> str:
     """Checks if the SD card has locked itself into Read-Only mode."""
-    test_file = Path(mount) / ".sd_health_test~"
+    test_file = Path(test_file_path)
     try:
         # Attempt to write and delete a temporary file
         test_file.touch(exist_ok=True)
@@ -396,7 +396,7 @@ def monitor_disks():
             elif health == "UNKNOWN":
                 logger.error(f"UNKNOWN SMART STATUS: smartctl returned unknown status for {drive["device"]}")
         elif drive["type"] == "sd":
-            health = get_sd_health(drive["mount"])
+            health = get_sd_health(drive["write_test_file"])
             if health == "PASSED":
                 logger.info(f"SD card {drive["name"]} passed the write test")
             elif health == "FAILED":

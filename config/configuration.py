@@ -57,5 +57,6 @@ EXTERNAL_DRIVES = [
     {"name": "System SD card",
      "device": "unused here",
      "mount": "/",
+     "write_test_file": "/home/admin/.write_test~",
      "type": "sd"}
 ]
