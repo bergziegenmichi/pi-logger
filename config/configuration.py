@@ -44,19 +44,19 @@ DISK_THRESHOLD = 80         # %
 
 # DRIVE CONFIG
 EXTERNAL_DRIVES = [
-    {"name": "Nextcloud data",
-     "device": "/dev/disk/by-label/nextcloud-data",
-     "mount": "/mnt/nextcloud-data",
-     "type": "smart"},
-
-    {"name": "Nextcloud backup",
-     "device": "/dev/disk/by-label/nextcloud-backup",
-     "mount": "/mnt/nextcloud-backup",
-     "type": "smart"},
-
     {"name": "System SD card",
      "device": "unused here",
      "mount": "/",
-     "write_test_file": "/home/admin/.write_test~",
-     "type": "sd"}
+     "type": "sd",
+     "write_test_file": "/home/admin/.write_test~"},
+
+    {"name": "Nextcloud data",
+     "mount": "/mnt/nextcloud-data",
+     "device": "/dev/disk/by-id/ata-HGST_HTS721010A9E630_JR100X4M0MP8BE",
+     "type": "smart"},
+
+    {"name": "Nextcloud backup",
+     "mount": "/mnt/nextcloud-backup",
+     "device": "/dev/disk/by-id/ata-TOSHIBA_MQ01ABD100_34KNT42CT",
+     "type": "smart"}
 ]
