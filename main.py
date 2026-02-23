@@ -79,7 +79,7 @@ def get_report(day: datetime):
         if not service_dir.is_dir():
             continue
         service_name = service_dir.name
-        log_file = service_dir / f"{service_name}.log.{suffix}"
+        log_file = service_dir / f"service.log{suffix}"
         if log_file.exists():
             services_logged.append(service_name)
             with open(log_file, "r", encoding="utf-8", errors="replace") as f:
