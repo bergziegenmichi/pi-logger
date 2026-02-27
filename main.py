@@ -119,6 +119,7 @@ def monitor_loop():
 
         if now - last_healtcheck_ping > configuration.HEALTHCHECK_PING_INTERVAL >= 0:
             run_task(target=generic_utils.ping_healthchecks_io, name="ping healthcheck")
+            last_healtcheck_ping = 0
 
         time.sleep(configuration.MAIN_LOOP_INTERVAL)
 
