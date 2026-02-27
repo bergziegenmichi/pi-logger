@@ -96,7 +96,6 @@ def monitor_dns_record():
 
     time_diff = get_local_time() - last_ts
 
-    should_refresh = False
     critical_refresh = False
 
     if current_ip == old_ip:
@@ -104,34 +103,32 @@ def monitor_dns_record():
 
         if time_diff > timedelta(seconds=configuration.DNS_FORCE_REFRESH_INTERVAL):
             loggers.DNS.info(f"Force refresh triggered (Last update: {time_diff}).")
-            should_refresh = True
         else:
             loggers.DNS.info(f"Nothing to do, exiting now (Last update: {time_diff}).")
+            return
 
     else:
         loggers.DNS.info(f"IP changed from {old_ip} to {current_ip}.")
-        should_refresh = True
         critical_refresh = True
 
-    if should_refresh:
-        success = update_dns_record(current_ip)
+    success = update_dns_record(current_ip)
 
-        if success:
-            loggers.DNS.info("DNS record successfully updated. Exiting now.")
-            write_ip_state(current_ip)
+    if success:
+        loggers.DNS.info("DNS record successfully updated. Exiting now.")
+        write_ip_state(current_ip)
 
-        elif critical_refresh:
-            loggers.DNS.error("Failed to update DNS record to new IP! Retrying...")
-            for i in range(1,4):
-                time.sleep(30)
-                if update_dns_record(current_ip):
-                    loggers.DNS.info(f"Retry #{i} successful. Exiting now.")
-                    write_ip_state(current_ip)
-                    return
-                loggers.DNS.error(f"Retry #{i} failed.")
-            log_critical_with_email(loggers.DNS, "All retries failed. Service is now unreachable. Immediate action must be taken. Exiting now.",
-                                    alternate_email_message= "Failed to update Cloudflare DNS record to new IP Address multiple times.\n"
-                                                             "If everything still works, a later attempt was successful.\n"
-                                                             f"If not, manually edit the Cloudflare DNS record. Current IP is {current_ip}")
-        else:
-            loggers.DNS.warning("Failed to refresh DNS record, but IP did not change. Should not be a problem for now. Exiting now.")
+    elif critical_refresh:
+        loggers.DNS.error("Failed to update DNS record to new IP! Retrying...")
+        for i in range(1,4):
+            time.sleep(30)
+            if update_dns_record(current_ip):
+                loggers.DNS.info(f"Retry #{i} successful. Exiting now.")
+                write_ip_state(current_ip)
+                return
+            loggers.DNS.error(f"Retry #{i} failed.")
+        log_critical_with_email(loggers.DNS, "All retries failed. Service is now unreachable. Immediate action must be taken. Exiting now.",
+                                alternate_email_message= "Failed to update Cloudflare DNS record to new IP Address multiple times.\n"
+                                                         "If everything still works, a later attempt was successful.\n"
+                                                         f"If not, manually edit the Cloudflare DNS record. Current IP is {current_ip}")
+    else:
+        loggers.DNS.warning("Failed to refresh DNS record, but IP did not change. Should not be a problem for now. Exiting now.")
