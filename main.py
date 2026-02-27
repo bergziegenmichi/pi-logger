@@ -8,7 +8,6 @@ import threading
 import time
 from datetime import datetime, timedelta
 from email.message import EmailMessage
-from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -18,101 +17,35 @@ from requests import RequestException
 
 from config import credentials
 from config import configuration
+from logger_utils import get_service_logger
 
-class DirectDateFileHandler(logging.FileHandler):
-    """
-        Writes directly to a file named 'service.log.YYYY-MM-DD'.
-        Switches to a new file automatically when the date changes.
-        """
-
-    def __init__(self, log_dir: Path, service_name: str, date_fmt: str):
-        self.log_dir = log_dir
-        self.service_name = service_name
-        self.date_fmt = date_fmt
-        self.current_date = datetime.now().strftime(date_fmt)
-
-        # Calculate initial filename
-        filename = self._get_filename()
-
-        # Initialize standard FileHandler
-        super().__init__(filename)
-
-    def _get_filename(self):
-        """Generates the filename based on current date."""
-        return self.log_dir / f"{self.service_name}.log.{self.current_date}"
-
-    def emit(self, record):
-        """
-        Overridden emit: Checks if date changed before writing.
-        """
-        try:
-            new_date = datetime.now().strftime(self.date_fmt)
-
-            # If the day has rolled over since the last log
-            if new_date != self.current_date:
-                self.current_date = new_date
-
-                # 1. Close the current file stream
-                self.close()
-
-                # 2. Update the target filename
-                self.baseFilename = str(self._get_filename())
-
-                # 3. Open the new stream (FileHandler._open returns the stream)
-                self.stream = self._open()
-
-            # Proceed with standard logging
-            super().emit(record)
-        except Exception:
-            self.handleError(record)
-
-def get_service_logger(service_name: str) -> logging.Logger:
-    logger = logging.getLogger(f"monitor.{service_name}")
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-
-    # Only add handler if it doesn't exist yet to prevent duplicate logs
-    if not logger.handlers:
-        # Create directory
-        log_dir = configuration.BASE_LOG_DIR / service_name
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Log to file: service.log (Rotates at midnight, keeps 30 days)
-        log_file = log_dir / "service.log"
-        handler = DirectDateFileHandler(
-            log_dir=log_dir,
-            service_name=service_name,
-            date_fmt=configuration.LOG_SUFFIX_FORMAT
-        )
-
-        formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s", datefmt=configuration.TIMESTAMP_FORMAT)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-    return logger
+LOGGER_DNS = get_service_logger("dns")
+LOGGER_SYS = get_service_logger("sys")
+LOGGER_EMAIL = get_service_logger("email")
+LOGGER_DISKS = get_service_logger("disks")
+LOGGER_MAIN = get_service_logger("main")
 
 
 def send_email(subject: str, content: str):
-    logger = get_service_logger("email-reporter")
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = configuration.SENDER_EMAIL
     msg["To"] = configuration.RECEIVER_EMAIL
     msg.set_content(content)
 
-    logger.info(f"Trying to send report email: {subject}")
+    LOGGER_EMAIL.info(f"Trying to send report email: {subject}")
 
     try:
         context = ssl.create_default_context()
 
         with smtplib.SMTP_SSL(configuration.SMTP_SERVER, configuration.SMTP_PORT, context=context, timeout=30) as server:
-            logger.info("Connection established")
+            LOGGER_EMAIL.info("Connection established")
             server.login(credentials.EMAIL_USERNAME, credentials.EMAIL_PASSWORD)
-            logger.info("Logged in successfully")
+            LOGGER_EMAIL.info("Logged in successfully")
             server.send_message(msg)
-            logger.info("Message sent successfully")
+            LOGGER_EMAIL.info("Message sent successfully")
     except Exception as e:
-        logger.error(f"Error: {e}")
+        LOGGER_EMAIL.error(f"Error: {e}")
 
 def get_report(day: datetime):
     date = day.strftime(configuration.LOG_SUFFIX_FORMAT)
@@ -164,7 +97,7 @@ def austrian_time() -> datetime:
     return datetime.now(ZoneInfo("Europe/Vienna"))
 
 
-def get_ip(logger: logging.Logger) -> str:
+def get_ip() -> str:
     """Gets public IP. Throws exception on failure."""
     urls = ["https://ifconfig.me", "https://api.ipify.org"]
     for url in urls:
@@ -173,10 +106,10 @@ def get_ip(logger: logging.Logger) -> str:
             response.raise_for_status()
             return response.text.strip()
         except RequestException as e:
-            logger.warning(f"Failed to get IP from {url}: {e}")
+            LOGGER_DNS.warning(f"Failed to get IP from {url}: {e}")
     raise requests.ConnectionError("Could not retrieve public IP from any provider.")
 
-def read_ip_state(logger: logging.Logger) -> tuple[str, datetime]:
+def read_ip_state() -> tuple[str, datetime]:
     """Reads state file. Returns (ip, timestamp). Handles missing file."""
     if not configuration.IP_STATE_FILE.exists():
         return "", datetime.min.replace(tzinfo=ZoneInfo("Europe/Vienna"))
@@ -186,7 +119,7 @@ def read_ip_state(logger: logging.Logger) -> tuple[str, datetime]:
             state = json.load(f)
         return state["ip"], datetime.fromisoformat(state["ts"])
     except (json.JSONDecodeError, KeyError):
-        logger.warning("State file corrupted. Resetting.")
+        LOGGER_DNS.warning("State file corrupted. Resetting.")
         return "", datetime.min.replace(tzinfo=ZoneInfo("Europe/Vienna"))
 
 def write_ip_state(ip: str) -> None:
@@ -198,7 +131,7 @@ def write_ip_state(ip: str) -> None:
     with open(configuration.IP_STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
-def update_dns_record(ip: str, logger:logging.Logger) -> bool:
+def update_dns_record(ip: str) -> bool:
     url = f"https://api.cloudflare.com/client/v4/zones/{configuration.CLOUDFLARE_ZONE_ID}/dns_records/{configuration.CLOUDFLARE_RECORD_ID}"
 
     payload = {
@@ -222,25 +155,24 @@ def update_dns_record(ip: str, logger:logging.Logger) -> bool:
         if data.get("success", False):
             return True
         else:
-            logger.error(f"Cloudflare API returned failure: {data}")
+            LOGGER_DNS.error(f"Cloudflare API returned failure: {data}")
             return False
 
     except RequestException as e:
-        logger.error(f"Network error updating DNS: {e}")
+        LOGGER_DNS.error(f"Network error updating DNS: {e}")
         return False
 
 def monitor_dns_record():
-    logger = get_service_logger("dns")
-    logger.info("Starting DNS record check.")
+    LOGGER_DNS.info("Starting DNS record check.")
 
     try:
-        current_ip = get_ip(logger)
-        logger.info(f"Current WAN IP: {current_ip}")
+        current_ip = get_ip()
+        LOGGER_DNS.info(f"Current WAN IP: {current_ip}")
     except Exception as e:
-        logger.error(f"Failed to determine IP. Aborting. Error: {e}")
+        LOGGER_DNS.error(f"Failed to determine IP. Aborting. Error: {e}")
         return
 
-    old_ip, last_ts = read_ip_state(logger)
+    old_ip, last_ts = read_ip_state()
 
 
     time_diff = austrian_time() - last_ts
@@ -249,41 +181,41 @@ def monitor_dns_record():
     critical_refresh = False
 
     if current_ip == old_ip:
-        logger.info("IP has not changed.")
+        LOGGER_DNS.info("IP has not changed.")
 
         if time_diff > timedelta(seconds=configuration.DNS_FORCE_REFRESH_INTERVAL):
-            logger.info(f"Force refresh triggered (Last update: {time_diff}).")
+            LOGGER_DNS.info(f"Force refresh triggered (Last update: {time_diff}).")
             should_refresh = True
         else:
-            logger.info(f"Nothing to do, exiting now (Last update: {time_diff}).")
+            LOGGER_DNS.info(f"Nothing to do, exiting now (Last update: {time_diff}).")
 
     else:
-        logger.info(f"IP changed from {old_ip} to {current_ip}.")
+        LOGGER_DNS.info(f"IP changed from {old_ip} to {current_ip}.")
         should_refresh = True
         critical_refresh = True
 
     if should_refresh:
-        success = update_dns_record(current_ip, logger)
+        success = update_dns_record(current_ip)
 
         if success:
-            logger.info("DNS record successfully updated. Exiting now.")
+            LOGGER_DNS.info("DNS record successfully updated. Exiting now.")
             write_ip_state(current_ip)
 
         elif critical_refresh:
-            logger.error("Failed to update DNS record to new IP! Retrying...")
+            LOGGER_DNS.error("Failed to update DNS record to new IP! Retrying...")
             for i in range(1,4):
                 time.sleep(30)
-                if update_dns_record(current_ip, logger):
-                    logger.info(f"Retry #{i} successful. Exiting now.")
+                if update_dns_record(current_ip):
+                    LOGGER_DNS.info(f"Retry #{i} successful. Exiting now.")
                     write_ip_state(current_ip)
                     return
-                logger.error(f"Retry #{i} failed.")
-            log_critical_with_email(logger, "All retries failed. Service is now unreachable. Immediate action must be taken. Exiting now.",
+                LOGGER_DNS.error(f"Retry #{i} failed.")
+            log_critical_with_email(LOGGER_DNS, "All retries failed. Service is now unreachable. Immediate action must be taken. Exiting now.",
                                     alternate_email_message= "Failed to update Cloudflare DNS record to new IP Address multiple times.\n"
                                                              "If everything still works, a later attempt was successful.\n"
                                                              f"If not, manually edit the Cloudflare DNS record. Current IP is {current_ip}")
         else:
-            logger.warning("Failed to refresh DNS record, but IP did not change. Should not be a problem for now. Exiting now.")
+            LOGGER_DNS.warning("Failed to refresh DNS record, but IP did not change. Should not be a problem for now. Exiting now.")
 
 def get_ram_usage() -> float:
     return psutil.virtual_memory().percent
@@ -335,8 +267,6 @@ def get_current_clock_speed() -> int:
         return 0
 
 def monitor_sys(log_heartbeat: bool = False):
-    logger = get_service_logger("sys")
-
     ram_usage = get_ram_usage()
     cpu_usage = get_cpu_usage()
     cpu_temp = get_cpu_temp()
@@ -348,29 +278,29 @@ def monitor_sys(log_heartbeat: bool = False):
     msg = f"CPU: {cpu_usage:.1f}% @ {cpu_freq}MHz | RAM: {ram_usage:.1f}% | Temp: {cpu_temp:.1f}°C"
 
     if not status:
-        logger.error(f"Failed to get hardware status. {msg}")
+        LOGGER_SYS.error(f"Failed to get hardware status. {msg}")
         return
 
         # 1. Immediate hardware risk
     if status["undervolt"]:
-        logger.critical(f"POWER CRITICAL: Under-voltage detected! {msg}")
+        LOGGER_SYS.critical(f"POWER CRITICAL: Under-voltage detected! {msg}")
         return
 
         # 2. Throttling and Limits
     if status["throttled"]:
-        logger.warning(f"THERMAL THROTTLE: CPU speed is being forced down! {msg}")
+        LOGGER_SYS.warning(f"THERMAL THROTTLE: CPU speed is being forced down! {msg}")
     elif status["capped"]:
-        logger.warning(f"PERFORMANCE CAPPED: ARM frequency limited by firmware. {msg}")
+        LOGGER_SYS.warning(f"PERFORMANCE CAPPED: ARM frequency limited by firmware. {msg}")
     elif status["soft_limit"]:
-        logger.warning(f"SOFT LIMIT REACHED: Temperature > 60°C, slight throttling active. {msg}")
+        LOGGER_SYS.warning(f"SOFT LIMIT REACHED: Temperature > 60°C, slight throttling active. {msg}")
 
         # 3. Standard Thresholds
     if ram_usage > configuration.RAM_USAGE_THRESHOLD or cpu_usage > configuration.CPU_USAGE_THRESHOLD or cpu_temp > configuration.CPU_TEMP_THRESHOLD:
-        logger.warning(f"RESOURCE ALERT: Threshold exceeded. {msg}")
+        LOGGER_SYS.warning(f"RESOURCE ALERT: Threshold exceeded. {msg}")
 
         # 4. Heartbeat
     if log_heartbeat:
-        logger.info(f"Heartbeat: {msg}")
+        LOGGER_SYS.info(f"Heartbeat: {msg}")
 
 
 def get_disk_usage(path: str) -> dict[str, float] | None:
@@ -419,35 +349,34 @@ def get_sd_health(test_file_path) -> str:
         return "ERROR"
 
 def monitor_disks():
-    logger = get_service_logger("disks")
     for drive in configuration.EXTERNAL_DRIVES:
         usage = get_disk_usage(drive["mount"])
         if usage["percent"] > configuration.DISK_THRESHOLD:
-            logger.warning(f"DISK FULL: {drive['name']} is {usage['percent']}% full ({usage['free_gb']}GB left)")
+            LOGGER_DISKS.warning(f"DISK FULL: {drive['name']} is {usage['percent']}% full ({usage['free_gb']}GB left)")
         else:
-            logger.info(f"{drive['name']} Usage: {usage['percent']}% ({usage['free_gb']}GB free)")
+            LOGGER_DISKS.info(f"{drive['name']} Usage: {usage['percent']}% ({usage['free_gb']}GB free)")
         if drive["type"] == "smart":
             health = get_smart_health(drive["device"])
             if health == "PASSED":
-                logger.info(f"DRIVE {drive["name"]} passed the SMART test")
+                LOGGER_DISKS.info(f"DRIVE {drive["name"]} passed the SMART test")
             elif health == "FAILED":
-                logger.critical(f"DRIVE FAILURE IMMINENT: {drive['name']} ({drive['device']}) FAILED SMART CHECK!")
+                LOGGER_DISKS.critical(f"DRIVE FAILURE IMMINENT: {drive['name']} ({drive['device']}) FAILED SMART CHECK!")
             elif health == "ERROR":
-                logger.error(f"SMART ERROR: Could not communicate with {drive['device']}. Check USB cable.")
+                LOGGER_DISKS.error(f"SMART ERROR: Could not communicate with {drive['device']}. Check USB cable.")
             elif health == "TIMEOUT":
-                logger.error(f"SMART check timed out for {drive['device']}")
+                LOGGER_DISKS.error(f"SMART check timed out for {drive['device']}")
             elif health == "UNKNOWN":
-                logger.error(f"UNKNOWN SMART STATUS: smartctl returned unknown status for {drive["device"]}")
+                LOGGER_DISKS.error(f"UNKNOWN SMART STATUS: smartctl returned unknown status for {drive["device"]}")
         elif drive["type"] == "sd":
             health = get_sd_health(drive["write_test_file"])
             if health == "PASSED":
-                logger.info(f"SD card {drive["name"]} passed the write test")
+                LOGGER_DISKS.info(f"SD card {drive["name"]} passed the write test")
             elif health == "FAILED":
-                log_critical_with_email(logger,f"SD card {drive["name"]} did not pass the write test. It is now in READ-ONLY mode!",
+                log_critical_with_email(LOGGER_DISKS,f"SD card {drive["name"]} did not pass the write test. It is now in READ-ONLY mode!",
                                         alternate_email_message=f"SD card {drive["name"]} failed the write test, because it is in READ-ONLY mode!.\n"
                                                                 f"Immediate backup and replacement required.")
             elif health == "ERROR":
-                log_critical_with_email(logger,f"UNKNOWN ERROR while performing write test on {drive["name"]}",
+                log_critical_with_email(LOGGER_DISKS,f"UNKNOWN ERROR while performing write test on {drive["name"]}",
                                         alternate_email_message=f"SD card {drive["name"]} failed the write test with an unknown error.\n"
                                                                 f"It may be in READ-ONLY mode! Immediate replacement required.")
 
@@ -455,8 +384,7 @@ def monitor_disks():
 
 
 def monitor_loop():
-    main_logger = get_service_logger("main")
-    main_logger.info("Main monitor loop started")
+    LOGGER_MAIN.info("Main monitor loop started")
 
     last_dns_check = 0
     last_sys_check = 0
