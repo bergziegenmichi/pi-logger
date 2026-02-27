@@ -99,26 +99,31 @@ def monitor_loop():
         local_day = local_time.strftime("%Y-%m-%d")
 
         if now - last_dns_check > configuration.DNS_CHECK_INTERVAL >= 0:
+            loggers.MAIN.info("Running task dns")
             run_task(target=monitor_dns_record, name="dns")
             last_dns_check = now
 
         if now - last_sys_check > configuration.SYS_CHECK_INTERVAL >= 0:
             should_heartbeat = (now - last_sys_heartbeat) > configuration.SYS_HEARTBEAT_INTERVAL
+            loggers.MAIN.info(f"Running task sys. heartbeat = {should_heartbeat}")
             run_task(target=monitor_sys, name="sys", args=(should_heartbeat,))
             last_sys_check = now
             if should_heartbeat:
                 last_sys_heartbeat = now
 
         if now - last_disks_check > configuration.DISK_CHECK_INTERVAL >= 0:
+            loggers.MAIN.info("running task disks")
             run_task(target=monitor_disks, name="disks")
             last_disks_check = now
 
         if local_time.hour == 1 and local_day != last_report:
+            loggers.MAIN.info("running task email-reporter")
             run_task(target=send_daily_report, name="email-reporter", args=(local_time - timedelta(days=1),))
             last_report = local_day
 
         if now - last_healtcheck_ping > configuration.HEALTHCHECK_PING_INTERVAL >= 0:
-            run_task(target=generic_utils.ping_healthchecks_io, name="ping healthcheck")
+            loggers.MAIN.info("running task ping-healthcheck")
+            run_task(target=generic_utils.ping_healthchecks_io, name="ping-healthcheck")
             last_healtcheck_ping = 0
 
         time.sleep(configuration.MAIN_LOOP_INTERVAL)
