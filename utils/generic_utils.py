@@ -15,4 +15,6 @@ def ping_healthchecks_io():
         requests.get(credentials.HEALTHCHECK_URL, timeout=10)
     except requests.RequestException as e:
         # If this fails repeatedly, Healthchecks.io will notify you via email anyway.
-        loggers.MAIN.warning(f"Failed to ping Healthchecks.io: {e}")
+        loggers.MAIN.warning(f"Failed to ping healthchecks.io: {e}")
+        return
+    loggers.MAIN.info("Successfully pinged healthchecks.io")
