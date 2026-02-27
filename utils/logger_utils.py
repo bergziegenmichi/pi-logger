@@ -25,7 +25,7 @@ class DirectDateFileHandler(logging.FileHandler):
 
     def _get_filename(self):
         """Generates the filename based on current date."""
-        return self.log_dir / f"{self.service_name}.log.{self.current_date}"
+        return self.log_dir / f"service.log.{self.current_date}"
 
     def emit(self, record):
         """
