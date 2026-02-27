@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import loggers
 from config import configuration
 from utils import generic_utils
-from utils.generic_utils import get_local_time
+from utils.generic_utils import get_local_time, ping_healthchecks_io
 from services.disks import monitor_disks
 from services.dns import monitor_dns_record
 from utils.email_utils import send_email, log_critical_with_email
@@ -123,7 +123,7 @@ def monitor_loop():
 
         if now - last_healtcheck_ping > configuration.HEALTHCHECK_PING_INTERVAL >= 0:
             loggers.MAIN.info("running task ping-healthcheck")
-            run_task(target=generic_utils.ping_healthchecks_io, name="ping-healthcheck")
+            run_task(target=ping_healthchecks_io, name="ping-healthcheck")
             last_healtcheck_ping = 0
 
         time.sleep(configuration.MAIN_LOOP_INTERVAL)
