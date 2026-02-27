@@ -57,9 +57,10 @@ def send_daily_report(day: datetime):
 
 def monitor_loop():
     def run_task(name, target, args=()):
-        for name in running_threads and running_threads[name].is_alive():
-            loggers.MAIN.warning(f"Skipping {name} check: Previous thread still running.")
-            return
+        for name in running_threads:
+            if running_threads[name].is_alive():
+                loggers.MAIN.warning(f"Skipping {name} check: Previous thread still running.")
+                return
         t = threading.Thread(target=target, name=name, args=args)
         running_threads[name] = t
         t.start()
