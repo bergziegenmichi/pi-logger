@@ -5,6 +5,7 @@ from pathlib import Path
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG_SUFFIX_FORMAT = "%Y-%m-%d"
 HUMAN_READABLE_DATETIME_FORMAT = "%d.%m.%Y %H:%M:%S"
+LOCAL_TIMEZONE = "Europe/Vienna"
 
 # CLOUDFLARE CONFIGS
 CLOUDFLARE_ZONE_ID = "8b35a4d96efcd077732d5f265f08921a"
