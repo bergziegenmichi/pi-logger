@@ -29,13 +29,14 @@ BASE_LOG_DIR = HOME_DIR / "pi-logger.logs"
 DNS_LOG_DIR = BASE_LOG_DIR / "ddns.logs"
 IP_STATE_FILE = HOME_DIR / ".ip-state.json"
 
-# INTERVALS
+# INTERVALS                                 # set to negative number to never run
 MAIN_LOOP_INTERVAL = 10                     # 10 second
 DNS_CHECK_INTERVAL = 60*5                   # 5 minutes
 DNS_FORCE_REFRESH_INTERVAL = 60 * 60 * 24   # 24 hours
 SYS_CHECK_INTERVAL = 10                     # 10 seconds
 SYS_HEARTBEAT_INTERVAL = 60*60              # 1 hour
 DISK_CHECK_INTERVAL = 60*60*24              # 24 hours
+HEALTHCHECK_PING_INTERVAL = 60*60           # 1 hour
 
 # THRESHOLDS
 RAM_USAGE_THRESHOLD = 80    # %
