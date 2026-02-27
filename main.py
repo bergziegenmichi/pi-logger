@@ -123,7 +123,7 @@ def monitor_loop():
         if now - last_healtcheck_ping > configuration.HEALTHCHECK_PING_INTERVAL >= 0:
             loggers.MAIN.info("running task ping-healthcheck")
             run_thread(target=ping_healthchecks_io, name="ping-healthcheck")
-            last_healtcheck_ping = 0
+            last_healtcheck_ping = now
 
         time.sleep(configuration.MAIN_LOOP_INTERVAL)
 
