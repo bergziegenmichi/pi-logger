@@ -35,10 +35,7 @@ def _reboot():
         f"No connectivity for {configuration.CONNECTIVITY_REBOOT_AFTER // 60} consecutive "
         "minutes. Requesting graceful shutdown."
     )
-    result = subprocess.run(
-        ["sudo", "systemctl", "start", "pi-logger-reboot.service"],
-        capture_output=True, text=True
-    )
+    result = subprocess.run(["sudo", "/usr/bin/systemctl", "reboot"], capture_output=True, text=True)
     if result.returncode != 0:
         loggers.CONN.critical(
             f"Shutdown command failed (rc={result.returncode}): {result.stderr.strip()}"
