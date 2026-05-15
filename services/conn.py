@@ -36,7 +36,7 @@ def _reboot():
         "minutes. Requesting graceful shutdown."
     )
     result = subprocess.run(
-        ["sudo", "systemctl", "start", "pi-logger-shutdown.service"],
+        ["sudo", "systemctl", "start", "pi-logger-reboot.service"],
         capture_output=True, text=True
     )
     if result.returncode != 0:

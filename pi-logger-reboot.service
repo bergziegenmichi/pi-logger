@@ -3,17 +3,17 @@
 # You can use sudo systemctl link [location of this file]
 # Run 'sudo systemctl daemon-reload' afterwards.
 # THIS NEEDS TO BE EXECUTABLE BY THE USER RUNNING THE LOGGER
-# Use something like: "<USERNAME RUNNING THE LOGGER> ALL=(ALL) NOPASSWD: /bin/systemctl start pi-logger-shutdown.service"
+# Use something like: "<USERNAME RUNNING THE LOGGER> ALL=(ALL) NOPASSWD: /bin/systemctl start pi-logger-reboot.service"
 # in your sudoers file.
 
 [Unit]
-Description=Graceful shutdown triggered by pi-logger connectivity watchdog
+Description=Graceful reboot triggered by pi-logger connectivity watchdog
 DefaultDependencies=no
 Before=shutdown.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/systemctl poweroff
+ExecStart=/bin/systemctl reboot
 
 [Install]
 WantedBy=multi-user.target
