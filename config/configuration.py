@@ -37,6 +37,9 @@ SYS_CHECK_INTERVAL = 10                     # 10 seconds
 SYS_HEARTBEAT_INTERVAL = 60*60              # 1 hour
 DISK_CHECK_INTERVAL = 60*60*24              # 24 hours
 HEALTHCHECK_PING_INTERVAL = 60*60           # 1 hour
+CONNECTIVITY_CHECK_INTERVAL = 60            # 1 minute
+CONNECTIVITY_REBOOT_AFTER = 60*15           # 15 minutes
+
 
 # THRESHOLDS
 RAM_USAGE_THRESHOLD = 80    # %

@@ -8,3 +8,4 @@ Configure config/configuration.py
 Edit config/credentials.py.template as explained in the file
 
 Edit pi-logger.service and follow instructions in the file
+Read and follow the instructions in pi-logger-shutdown.service

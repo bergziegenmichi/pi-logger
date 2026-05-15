@@ -1,0 +1,19 @@
+# This is only needed if you want to enable auto reboot on connection loss.
+# Create a symlink in /etc/systemd/system/pi-logger.service that points to this file or move the file there
+# You can use sudo systemctl link [location of this file]
+# Run 'sudo systemctl daemon-reload' afterwards.
+# THIS NEEDS TO BE EXECUTABLE BY THE USER RUNNING THE LOGGER
+# Use something like: "<USERNAME RUNNING THE LOGGER> ALL=(ALL) NOPASSWD: /bin/systemctl start pi-logger-shutdown.service"
+# in your sudoers file.
+
+[Unit]
+Description=Graceful shutdown triggered by pi-logger connectivity watchdog
+DefaultDependencies=no
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl poweroff
+
+[Install]
+WantedBy=multi-user.target

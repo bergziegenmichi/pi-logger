@@ -5,5 +5,6 @@ SYS = get_service_logger("sys")
 EMAIL = get_service_logger("email")
 DISKS = get_service_logger("disks")
 MAIN = get_service_logger("main")
+CONN = get_service_logger("conn")
 
 ALL_LOGGERS = [DNS, SYS, EMAIL, DISKS, MAIN]

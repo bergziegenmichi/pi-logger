@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 import loggers
 from config import configuration
+from services.conn import monitor_connectivity
 from utils import generic_utils
 from utils.generic_utils import get_local_time, ping_healthchecks_io
 from services.disks import monitor_disks
@@ -87,6 +88,7 @@ def monitor_loop():
     last_sys_heartbeat = 0
     last_disks_check = 0
     last_healtcheck_ping = 0
+    last_conn_check = 0
 
     last_report = ""
 
@@ -124,6 +126,11 @@ def monitor_loop():
             loggers.MAIN.info("running task ping-healthcheck")
             run_thread(target=ping_healthchecks_io, name="ping-healthcheck")
             last_healtcheck_ping = now
+
+        if now - last_conn_check > configuration.CONNECTIVITY_CHECK_INTERVAL >= 0:
+            loggers.MAIN.info("running task connectivity")
+            run_thread(target=monitor_connectivity, name="connectivity")
+            last_conn_check = now
 
         time.sleep(configuration.MAIN_LOOP_INTERVAL)
 
