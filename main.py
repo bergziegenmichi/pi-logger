@@ -19,6 +19,7 @@ def get_report(day: datetime):
     date = day.strftime(configuration.LOG_SUFFIX_FORMAT)
     report_lines = []
     services_logged = []
+    actually_contained = []
     for service_dir in configuration.BASE_LOG_DIR.iterdir():
         if not service_dir.is_dir():
             continue
@@ -32,6 +33,8 @@ def get_report(day: datetime):
                         for level in configuration.DAILY_REPORT_LEVELS:
                             if f"[{level}]" in line:
                                 report_lines.append(f"[{service_name.upper()}] {line.strip()}")
+                                if service_name not in actually_contained:
+                                    actually_contained.append(service_name)
                                 break
             except PermissionError:
                 report_lines.append("")
@@ -44,7 +47,7 @@ def get_report(day: datetime):
     if not report_lines:
         return f"All systems nominal for {date}. No issues detected. Read log files for services: {services_logged}. Reporting log levels: {configuration.DAILY_REPORT_LEVELS}"
 
-    return f"Report for {date}, including services {services_logged} and log levels {configuration.DAILY_REPORT_LEVELS} \n\n\n" + "\n".join(report_lines)
+    return f"Report for {date}, including services {services_logged} and log levels {configuration.DAILY_REPORT_LEVELS} \nThe following services actually reported something: {actually_contained}.\n\n\n" + "\n".join(report_lines)
 
 
 def send_daily_report(day: datetime):
